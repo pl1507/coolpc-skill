@@ -163,6 +163,9 @@ def full_catalog(html: str) -> list[dict]:
             name = cat_names.get(i, f"#{i}")
             disc = discounts[i]
             records.append({
+                # idx = option value（evaluate.php 的 option value 即 JS 陣列索引），
+                # picker.py 開瀏覽器自動填入時需要此欄位
+                "idx": i,
                 "category": cat_name,
                 "name": name,
                 "price": price,

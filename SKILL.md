@@ -1,21 +1,23 @@
 ---
 name: coolpc
-description: >
-  抓取原價屋（coolpc.com.tw）估價單頁面的即時商品與價格，
-  協助使用者依預算與需求討論最佳零件搭配方案。
-  當使用者提到「原價屋」、「組電腦」、「預算搭配」、「零件推薦」、
-  「coolpc」、「估價單」時請使用此 skill。
+description: 抓取原價屋（coolpc.com.tw）估價單頁面的即時商品與價格，協助使用者依預算與需求討論最佳零件搭配方案。當使用者提到「原價屋」、「組電腦」、「預算搭配」、「零件推薦」、「coolpc」、「估價單」時請使用此 skill。
 ---
 
 # 原價屋估價單 Skill
 
-協助使用者依預算與需求，從原價屋（coolpc.com.tw/evaluate.php）的即時商品清單
-討論最適合的零件搭配組合。
+協助使用者依預算與需求，從原價屋（coolpc.com.tw/evaluate.php）的即時商品清單討論最適合的零件搭配組合。
+
+## 環境
+
+- Skill 路徑：`${HOME}/.openclaw/skills/coolpc`；**所有指令先 `cd "${HOME}/.openclaw/skills/coolpc"`** 再執行 `python3 scripts/...`（下方指令皆假設已在此目錄）
+- `scraper.py`／`picker.py` 皆為 **Python 3 stdlib only**（urllib/re/json），不需要 venv、不需要 pip install；直接 `python3` 即可
+- 商品快取：`/tmp/coolpc_catalog.json`（當日有效；跨日或想拿最新價一律加 `--refresh`）
+- `picker.py` 的瀏覽器自動填入需選配 Playwright（未安裝時會提示並降級），純查價/推薦流程用不到它
 
 ## 整體流程
 
 ```
-1. 抓取估價單  →  2. 了解需求與預算  →  3. 推薦搭配  →  4. 討論微調  →  5. 開啟估價單
+1. 抓取估價單  →  2. 了解需求與預算  →  3. 推薦搭配  →  4. 討論微調  →  5. (選配)開啟估價單
 ```
 
 ---
@@ -25,15 +27,14 @@ description: >
 ### 執行爬蟲
 
 ```bash
-cd /Users/codingman/git/coolpc-skill
-python3 scraper.py --refresh
+python3 scripts/scraper.py --refresh
 ```
 
 - 輸出快取至 `/tmp/coolpc_catalog.json`
 - 若快取已存在（當天），省略 `--refresh` 直接讀快取：
 
 ```bash
-python3 scraper.py 2>/dev/null
+python3 scripts/scraper.py 2>/dev/null
 ```
 
 ### 資料格式
@@ -41,6 +42,7 @@ python3 scraper.py 2>/dev/null
 每筆商品包含：
 ```json
 {
+  "idx": 3,
   "category": "處理器 CPU",
   "name": "Intel Core i5-14600K【現貨】",
   "price": 8990,
@@ -49,12 +51,14 @@ python3 scraper.py 2>/dev/null
 }
 ```
 
+> `idx` = 估價單 select 的 option value，供 picker.py 自動填入用。
+
 ### 查詢特定類別
 
 ```bash
-python3 scraper.py --category "CPU" 2>/dev/null
-python3 scraper.py --category "顯示卡" 2>/dev/null
-python3 scraper.py --category "主機板" --budget 5000 2>/dev/null
+python3 scripts/scraper.py --category "CPU" 2>/dev/null
+python3 scripts/scraper.py --category "顯示卡" 2>/dev/null
+python3 scripts/scraper.py --category "主機板" --budget 5000 2>/dev/null
 ```
 
 可用類別（依頁面）：
@@ -113,7 +117,7 @@ def search(keyword):
 ### 預算分配建議（一般遊戲主機）
 
 | 用途 | CPU | 顯示卡 | 主機板 | 記憶體 | 硬碟 | 電源 | 機殼 | 散熱 |
-|------|-----|--------|--------|--------|------|------|------|------|
+|------|-----|--------|--------|------|------|------|------|------|
 | 入門（3萬） | 20% | 35% | 12% | 10% | 8% | 8% | 5% | 5% |
 | 中階（5萬） | 18% | 38% | 12% | 8% | 7% | 8% | 5% | 4% |
 | 高階（10萬） | 20% | 40% | 12% | 8% | 8% | 7% | 3% | 3% |
@@ -167,42 +171,19 @@ def search(keyword):
 
 ---
 
-## Step 5：開啟估價單（選購完成後）
+## Step 5：（選配）開啟估價單
 
-討論好搭配後，讓使用者用互動清單選好商品、自動開啟瀏覽器填入估價單：
+互動式選購（需要 TTY；純查價/推薦不需要）：
 
 ```bash
-cd /Users/codingman/git/coolpc-skill/coolpc
-python3 picker.py
+python3 scripts/picker.py --no-browser        # 只顯示清單與合計（無 Playwright 也能用）
+python3 scripts/picker.py                     # 選完自動開瀏覽器填入（需 Playwright+Chromium）
 ```
 
-### picker.py 操作方式
+操作方式：`<數字>` 選擇、`s` 跳過、`n/b` 換頁、`f <關鍵字>` 搜尋、`q` 完成。
+未安裝 Playwright 時自動降級並提示安裝方式，不影響選購清單功能。
 
-啟動後依類別逐一列出商品，使用者輸入編號選擇：
-
-```
-指令：
-  <數字>        選擇該商品，移到下一個類別
-  s             跳過此類別
-  n / b         下一頁 / 上一頁
-  f <關鍵字>    篩選商品名稱
-  q             完成，進入結帳流程
-```
-
-選完後顯示明細總表，確認後自動開啟 Chromium 並填入所有選項。
-
-> **注意**：需要安裝 Playwright：
-> ```bash
-> pip install playwright && playwright install chromium
-> ```
-> 若不想開瀏覽器，加 `--no-browser` 參數，只輸出清單與合計。
-
-### 估價單說明
-
-原價屋估價單（evaluate.php）沒有可分享的 GET URL，選好商品後需：
-1. 在瀏覽器中確認各項選擇
-2. 點「列印估價單」產生可列印/截圖的明細頁
-3. 或直接截圖傳給店員
+> **注意**：原價屋估價單（evaluate.php）沒有可分享的 GET URL，選好商品後需在瀏覽器中按「列印估價單」產生可列印/截圖明細頁。
 
 ---
 
@@ -210,7 +191,7 @@ python3 picker.py
 
 | 情況 | 處理方式 |
 |------|---------|
-| SSL 憑證錯誤 | 已在 scraper.py 中跳過驗證，正常情況不會發生 |
-| 抓取逾時 | 重新執行 `python3 scraper.py --refresh` |
+| SSL 憑證錯誤 | scraper.py 已跳過驗證，正常情況不會發生 |
+| 抓取逾時 | 重新執行 `python3 scripts/scraper.py --refresh` |
 | 商品名稱顯示 `#N` | 頁面結構異動，回報並使用快取資料繼續討論 |
 | 快取不存在 | 自動觸發 `--refresh` 重新抓取 |
