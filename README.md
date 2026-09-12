@@ -23,15 +23,6 @@ pip install playwright
 playwright install chromium
 ```
 
-## 安裝
-
-```bash
-git clone <your-repo-url> coolpc
-cd coolpc
-```
-
-不需要任何額外套件即可執行爬蟲與查價。
-
 ## 使用方法
 
 ### 1. 抓取估價單
