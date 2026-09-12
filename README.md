@@ -16,7 +16,7 @@
 ## 環境需求
 
 - Python 3.8+（`urllib`、`re`、`json` 皆為內建模組）
-- 互動式選購 + 瀏覽器自動填入：需選配安裝 [Playwright](https://playwright.dev/python/) 與 Chromium（未安裝時自動降級為純清單模式，不影響查價）
+- (Optional)互動式選購 + 瀏覽器自動填入：需選配安裝 [Playwright](https://playwright.dev/python/) 與 Chromium（未安裝時自動降級為純清單模式，不影響查價）
 
 ```bash
 pip install playwright
